@@ -329,6 +329,41 @@ function Portal({ room, x, hovered }) {
         <div className="font-display" style={{ fontSize:14, fontStyle:'italic', color:'#2a2520', lineHeight:1, letterSpacing:'0.02em' }}>{room.labelZh}</div>
         <div className="font-mono" style={{ fontSize:9, color:'#6a635a', textAlign:'center', marginTop:2, letterSpacing:'0.2em' }}>{room.year}</div>
       </div>
+      {/* hover teaser — why this era matters */}
+      {hovered && room.why && (
+        <div className="absolute pointer-events-none" style={{
+          left:'50%', top: PORTAL_H + 22,
+          transform:'translateX(-50%)',
+          width: 230, textAlign:'center',
+          animation:'teaserIn 180ms ease both',
+          zIndex: 10,
+        }}>
+          <div style={{
+            background:'rgba(26,18,12,0.92)',
+            border:'1px solid rgba(244,239,230,0.14)',
+            backdropFilter:'blur(4px)',
+            padding:'9px 13px',
+          }}>
+            <div className="font-display" style={{
+              fontSize:10.5, fontStyle:'italic',
+              color:'rgba(244,239,230,0.80)',
+              lineHeight:1.60,
+              display:'-webkit-box',
+              WebkitLineClamp:4,
+              WebkitBoxOrient:'vertical',
+              overflow:'hidden',
+            }}>
+              {room.why}
+            </div>
+          </div>
+        </div>
+      )}
+      <style>{`
+        @keyframes teaserIn {
+          from { opacity:0; transform:translateX(-50%) translateY(5px); }
+          to   { opacity:1; transform:translateX(-50%) translateY(0); }
+        }
+      `}</style>
     </div>
   );
 }
@@ -614,6 +649,103 @@ function TransitionOverlay({ data }) {
   );
 }
 
+// ─── Intro overlay ───────────────────────────────────────────
+function IntroOverlay({ onStart }) {
+  const [out, setOut] = useState(false);
+  const dismiss = () => {
+    if (out) return;
+    setOut(true);
+    setTimeout(onStart, 320);
+  };
+  useEffect(() => {
+    const handler = (e) => {
+      if (['Shift','Control','Alt','Meta'].includes(e.key)) return;
+      dismiss();
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
+  return (
+    <div
+      onClick={dismiss}
+      style={{
+        position:'fixed', inset:0, zIndex:100,
+        background:'#1F1410',
+        display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
+        cursor:'pointer',
+        animation: out ? 'introOut 320ms ease both' : 'introIn 700ms ease both',
+        // subtle grid texture
+        backgroundImage:`
+          repeating-linear-gradient(0deg, rgba(244,239,230,0.018) 0 1px, transparent 1px 44px),
+          repeating-linear-gradient(90deg, rgba(244,239,230,0.012) 0 1px, transparent 1px 64px)`,
+      }}
+    >
+      {/* thin top rule */}
+      <div style={{ width:'clamp(240px,55vw,520px)', height:1, background:'rgba(244,239,230,0.18)', marginBottom:28 }}/>
+
+      {/* eyebrow */}
+      <div className="font-mono" style={{
+        fontSize:'clamp(8px,1.1vw,10px)', letterSpacing:'0.38em',
+        color:'rgba(244,239,230,0.38)', textTransform:'uppercase', marginBottom:18,
+      }}>
+        Musée · Modern Art · 1874–1965
+      </div>
+
+      {/* main title */}
+      <div className="font-display" style={{
+        fontSize:'clamp(52px,9vw,100px)', fontStyle:'italic',
+        color:'#F4EFE6', lineHeight:1,
+        textShadow:'0 6px 48px rgba(244,239,230,0.08)',
+      }}>
+        现代艺术
+      </div>
+      <div className="font-display" style={{
+        fontSize:'clamp(22px,3.8vw,40px)', fontStyle:'italic',
+        color:'rgba(244,239,230,0.55)', marginTop:8, letterSpacing:'0.05em',
+      }}>
+        150 年
+      </div>
+
+      {/* thin bottom rule */}
+      <div style={{ width:'clamp(240px,55vw,520px)', height:1, background:'rgba(244,239,230,0.18)', marginTop:28, marginBottom:36 }}/>
+
+      {/* controls */}
+      <div style={{ display:'flex', gap:'clamp(12px,2vw,28px)', flexWrap:'wrap', justifyContent:'center', marginBottom:14 }}>
+        {[['WASD / ↑↓←→','移动'], ['E / 互动','进入展厅'], ['ESC','返回长廊']].map(([key, desc]) => (
+          <div key={key} style={{ display:'flex', alignItems:'center', gap:8 }}>
+            <span className="font-mono" style={{
+              fontSize:'clamp(8px,0.9vw,10px)', letterSpacing:'0.18em',
+              background:'rgba(244,239,230,0.1)', color:'rgba(244,239,230,0.85)',
+              padding:'4px 10px', border:'1px solid rgba(244,239,230,0.18)',
+            }}>{key}</span>
+            <span className="font-display" style={{
+              fontSize:'clamp(11px,1.4vw,14px)', fontStyle:'italic',
+              color:'rgba(244,239,230,0.48)',
+            }}>{desc}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* pulse CTA */}
+      <div className="font-mono" style={{
+        fontSize:'clamp(7px,0.9vw,9px)', letterSpacing:'0.32em',
+        color:'rgba(244,239,230,0.28)', textTransform:'uppercase',
+        marginTop:22,
+        animation:'introPulse 2.2s ease-in-out infinite',
+      }}>
+        点击任意处 / Press Any Key
+      </div>
+
+      <style>{`
+        @keyframes introIn  { from { opacity:0; } to { opacity:1; } }
+        @keyframes introOut { from { opacity:1; } to { opacity:0; } }
+        @keyframes introPulse { 0%,100%{ opacity:.28; } 50%{ opacity:.72; } }
+      `}</style>
+    </div>
+  );
+}
+
 // ─── Game root ────────────────────────────────────────────────
 function Game() {
   const M = window.MUSEUM, MR = window.MUSEUM_ROOMS;
@@ -627,12 +759,14 @@ function Game() {
   const [visited, setVisited] = useState({});
   const [roomImages, setRoomImages] = useState({});
   const [, force] = useState(0);
+  const [showIntro, setShowIntro] = useState(true);
 
   // Refs for input loop
   const sceneRef = useRef(scene); useEffect(()=>{ sceneRef.current = scene; }, [scene]);
   const posRef = useRef(pos);     useEffect(()=>{ posRef.current = pos; }, [pos]);
   const transRef = useRef(transition); useEffect(()=>{ transRef.current = transition; }, [transition]);
   const modalRef = useRef(modal); useEffect(()=>{ modalRef.current = modal; }, [modal]);
+  const showIntroRef = useRef(true); useEffect(()=>{ showIntroRef.current = showIntro; }, [showIntro]);
   const keys = useRef({});
 
   // Slot lookup helper — attach _slot info to artworks
@@ -752,6 +886,7 @@ function Game() {
   // Keyboard
   useEffect(() => {
     const dn = e => {
+      if (showIntroRef.current) return;
       const k = e.key.toLowerCase();
       keys.current[k] = true;
       if (k === 'e' || k === 'enter') {
@@ -925,8 +1060,12 @@ function Game() {
         <window.ArtworkModal art={modal} room={room} imgSrc={roomImages[modal.title] || null} onClose={()=>setModal(null)}/>
       )}
       {/* touch controls — only on touch devices, also outside the scaled stage */}
-      {isTouch && !modal && !transition && (
+      {isTouch && !modal && !transition && !showIntro && (
         <TouchControls keysRef={keys} onAction={triggerAction}/>
+      )}
+      {/* intro overlay — covers everything on first load */}
+      {showIntro && (
+        <IntroOverlay onStart={() => setShowIntro(false)}/>
       )}
     </React.Fragment>
   );
