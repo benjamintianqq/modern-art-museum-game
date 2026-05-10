@@ -1,0 +1,145 @@
+// ─── Artwork detail modal ─────────────────────────────────────
+const { useEffect: useEffectModal } = React;
+
+function MetaRow({ label, value }) {
+  return (
+    <div className="flex gap-2 py-1" style={{ borderBottom: '1px solid rgba(58,42,30,0.08)' }}>
+      <dt className="font-mono text-[9px] tracking-[0.14em] uppercase shrink-0 w-[72px]" style={{ color: '#8C7E6E' }}>{label}</dt>
+      <dd className="text-[11.5px] leading-snug" style={{ color: '#3A2A1E' }}>{value}</dd>
+    </div>
+  );
+}
+
+function Pill({ children }) {
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] tracking-wide font-mono"
+          style={{ border: '1px solid rgba(58,42,30,0.25)', color: 'rgba(58,42,30,0.8)' }}>
+      {children}
+    </span>
+  );
+}
+
+function ArtworkModal({ art, room, imgSrc, onClose }) {
+  useEffectModal(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-6"
+      style={{ background: 'rgba(30,20,14,0.55)', backdropFilter: 'blur(6px)' }}
+      onClick={onClose}
+    >
+      <div
+        className="relative w-full max-w-[1060px]"
+        style={{
+          background: '#F4EFE6',
+          color: '#3A2A1E',
+          animation: 'cardIn 320ms cubic-bezier(.2,.7,.2,1) both',
+          maxHeight: '650px',
+          overflowY: 'auto',
+          boxShadow: '0 24px 60px rgba(0,0,0,0.45)',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* top bar */}
+        <div className="flex items-center justify-between px-7 pt-5 pb-3"
+             style={{ borderBottom: '1px solid rgba(58,42,30,0.12)' }}>
+          <div className="flex items-center gap-4 font-mono text-[9.5px] tracking-[0.18em] uppercase"
+               style={{ color: '#8C7E6E' }}>
+            <span style={{ color: room.accent }}>● {room.labelZh} · {room.year}</span>
+          </div>
+          <button
+            onClick={onClose}
+            className="font-mono text-[9.5px] tracking-[0.18em] uppercase px-2.5 py-1 transition-colors"
+            style={{
+              border: '1px solid #3A2A1E',
+              color: '#3A2A1E',
+              background: 'transparent',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = '#3A2A1E'; e.currentTarget.style.color = '#F4EFE6'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#3A2A1E'; }}
+          >
+            ESC
+          </button>
+        </div>
+
+        {/* body — two columns */}
+        <div className="grid grid-cols-12 gap-7 px-7 pt-6 pb-7">
+          {/* image column */}
+          <div className="col-span-5">
+            <div
+              className="w-full relative"
+              style={{
+                aspectRatio: '4 / 3',
+                background: imgSrc ? '#181210' : 'transparent',
+                backgroundImage: imgSrc ? 'none' : (art.swatch + ', repeating-linear-gradient(135deg, rgba(58,42,30,0.05) 0 2px, transparent 2px 7px)'),
+                border: '1px solid rgba(58,42,30,0.18)',
+                overflow: 'hidden',
+              }}
+            >
+              {imgSrc
+                ? <img src={imgSrc} alt={art.title} style={{ width:'100%', height:'100%', objectFit:'contain', display:'block' }}/>
+                : <div className="absolute top-2 left-2 px-1.5 py-0.5 font-mono text-[8.5px] tracking-[0.14em] uppercase"
+                       style={{ background: 'rgba(244,239,230,0.7)', color: 'rgba(58,42,30,0.6)', border: '1px solid rgba(58,42,30,0.12)' }}>
+                    {art.artist} · {art.year}
+                  </div>
+              }
+            </div>
+            <div className="flex items-center gap-2.5 mt-3">
+              <span className="font-mono text-[9px] tracking-[0.16em] uppercase" style={{ color: '#8C7E6E' }}>Palette</span>
+              <div className="flex">
+                {art.palette.map((h, i) => <span key={i} className="w-5 h-5" style={{ background: h }} />)}
+              </div>
+              <div className="flex-1 h-px" style={{ background: 'rgba(58,42,30,0.12)' }} />
+            </div>
+            {/* metadata below image */}
+            <dl className="mt-3" style={{ borderTop: '1px solid rgba(58,42,30,0.1)' }}>
+              {art.medium     && <MetaRow label="Medium"     value={art.medium} />}
+              {art.dimensions && <MetaRow label="Size" value={art.dimensions} />}
+              {art.location   && <MetaRow label="Collection" value={art.location} />}
+            </dl>
+            {art.concepts && art.concepts.length > 0 && (
+              <div className="mt-2.5">
+                <div className="flex flex-wrap gap-1.5">
+                  {art.concepts.map((k) => <Pill key={k}>{k}</Pill>)}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* text column */}
+          <div className="col-span-7">
+            <div className="font-mono text-[9.5px] tracking-[0.18em] uppercase" style={{ color: room.accent }}>
+              {art.artistZh}  ·  {art.year}
+            </div>
+            <h3 className="font-display text-[34px] leading-[1.05] mt-1.5" style={{ fontStyle: 'italic' }}>
+              {art.title}
+            </h3>
+            <div className="font-display text-[17px] leading-tight mt-1" style={{ color: 'rgba(58,42,30,0.65)' }}>
+              {art.titleZh}
+            </div>
+
+            <div style={{ height:1, background:'rgba(58,42,30,0.12)', margin:'10px 0' }}/>
+
+            {/* rich description paragraphs */}
+            <div className="space-y-2.5 text-[12.5px] leading-[1.72]" style={{ color: '#3A2A1E' }}>
+              {art.paragraphs.map((p, i) => <p key={i}>{p}</p>)}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <style>{`
+        @keyframes cardIn {
+          from { transform: translateY(16px); opacity: 0; }
+          to   { transform: translateY(0);    opacity: 1; }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+window.ArtworkModal = ArtworkModal;
