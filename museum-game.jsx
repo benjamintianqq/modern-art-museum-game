@@ -402,31 +402,29 @@ function ExitDoor({ accent }) {
 }
 
 // ─── Stage scaler ─────────────────────────────────────────────
-// Measures the viewport directly (not a parent) so it works regardless of
-// where the stage is mounted. Returns scale; callers compute scaled dims.
-function useStageScale() {
+// CSS sizes the wrapper via aspect-ratio + min() for a perfect contain-fit.
+// JS just observes the wrapper's actual rendered size and computes scale.
+// This avoids mismatches between JS scale and CSS layout under any viewport.
+function useStageScale(wrapperRef) {
   const [scale, setScale] = useState(1);
-  const [vw, setVW] = useState(typeof window !== 'undefined' ? window.innerWidth : STAGE_W);
-  const [vh, setVH] = useState(typeof window !== 'undefined' ? window.innerHeight : STAGE_H);
   useEffect(() => {
+    const el = wrapperRef.current; if (!el) return;
     const update = () => {
-      const w = window.innerWidth, h = window.innerHeight;
-      setVW(w); setVH(h);
-      // contain-fit: never crop, always show entire stage
-      setScale(Math.min(w / STAGE_W, h / STAGE_H));
+      const w = el.clientWidth;
+      if (w > 0) setScale(w / STAGE_W);
     };
     update();
-    window.addEventListener('resize', update);
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
     window.addEventListener('orientationchange', update);
-    // Visual viewport (mobile address-bar collapse)
     if (window.visualViewport) window.visualViewport.addEventListener('resize', update);
     return () => {
-      window.removeEventListener('resize', update);
+      ro.disconnect();
       window.removeEventListener('orientationchange', update);
       if (window.visualViewport) window.visualViewport.removeEventListener('resize', update);
     };
   }, []);
-  return { scale, vw, vh };
+  return scale;
 }
 
 // ─── Touch device detection ──────────────────────────────────
@@ -804,8 +802,10 @@ function Game() {
       imgs => setRoomImages(prev => ({ ...prev, ...imgs })));
   };
 
-  // Stage scale + viewport-aware sizing + touch detection
-  const { scale, vw, vh } = useStageScale();
+  // Stage scale + touch detection. The wrapper sizes itself via CSS;
+  // useStageScale just measures it and emits the matching transform scale.
+  const stageWrapRef = useRef(null);
+  const scale = useStageScale(stageWrapRef);
   const isTouch = useIsTouch();
 
   // Derived
@@ -829,25 +829,26 @@ function Game() {
 
   const RoomScene = inRoom ? MR.SCENE_BY_ID[scene] : null;
 
-  // Outer wrapper: full viewport, dark background (letterbox bars).
-  // Inner sized box: matches the SCALED visual size (so it can be
-  // centered crisply); the stage itself stays at logical 1280×720
-  // and is scaled with transform-origin: top-left.
-  const scaledW = STAGE_W * scale;
-  const scaledH = STAGE_H * scale;
+  // CSS-driven contain-fit wrapper. The wrapper width = min(100% of viewport
+  // width, height-derived width given 16:9). aspect-ratio locks height. JS
+  // just measures the wrapper and applies a matching transform scale.
   return (
     <React.Fragment>
       <div style={{
         position:'fixed', inset:0, background:'#1F1410',
-        display:'flex', alignItems:'center', justifyContent:'center',
+        display:'grid', placeItems:'center',
         overflow:'hidden',
-        // ensure mobile viewport quirks don't add overflow
-        width:'100vw', height:'100vh',
       }}>
-        <div style={{
-          width: scaledW, height: scaledH,
+        <div ref={stageWrapRef} style={{
+          // contain-fit: width capped by either viewport width OR height-derived width
+          width:  `min(100vw, calc(100dvh * ${STAGE_W} / ${STAGE_H}))`,
+          height: `min(100dvh, calc(100vw * ${STAGE_H} / ${STAGE_W}))`,
+          // fallback for browsers without dvh
+          maxWidth:  `calc(100vh * ${STAGE_W} / ${STAGE_H})`,
+          maxHeight: `calc(100vw * ${STAGE_H} / ${STAGE_W})`,
+          aspectRatio: `${STAGE_W} / ${STAGE_H}`,
           position:'relative',
-          boxShadow: scale < 1 ? '0 20px 60px rgba(0,0,0,0.6)' : 'none',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
         }}>
           <div style={{
             width: STAGE_W, height: STAGE_H,
