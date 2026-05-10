@@ -402,25 +402,122 @@ function ExitDoor({ accent }) {
 }
 
 // ─── Stage scaler ─────────────────────────────────────────────
+// Measures the viewport directly (not a parent) so it works regardless of
+// where the stage is mounted. Returns scale; callers compute scaled dims.
 function useStageScale() {
-  const ref = useRef(null);
   const [scale, setScale] = useState(1);
+  const [vw, setVW] = useState(typeof window !== 'undefined' ? window.innerWidth : STAGE_W);
+  const [vh, setVH] = useState(typeof window !== 'undefined' ? window.innerHeight : STAGE_H);
   useEffect(() => {
     const update = () => {
-      const el = ref.current?.parentElement; if (!el) return;
-      const w = el.clientWidth, h = el.clientHeight;
+      const w = window.innerWidth, h = window.innerHeight;
+      setVW(w); setVH(h);
+      // contain-fit: never crop, always show entire stage
       setScale(Math.min(w / STAGE_W, h / STAGE_H));
     };
     update();
-    const ro = new ResizeObserver(update); if (ref.current?.parentElement) ro.observe(ref.current.parentElement);
     window.addEventListener('resize', update);
-    return () => { ro.disconnect(); window.removeEventListener('resize', update); };
+    window.addEventListener('orientationchange', update);
+    // Visual viewport (mobile address-bar collapse)
+    if (window.visualViewport) window.visualViewport.addEventListener('resize', update);
+    return () => {
+      window.removeEventListener('resize', update);
+      window.removeEventListener('orientationchange', update);
+      if (window.visualViewport) window.visualViewport.removeEventListener('resize', update);
+    };
   }, []);
-  return [ref, scale];
+  return { scale, vw, vh };
+}
+
+// ─── Touch device detection ──────────────────────────────────
+function useIsTouch() {
+  const [isTouch, setIsTouch] = useState(false);
+  useEffect(() => {
+    const check = () =>
+      ('ontouchstart' in window) ||
+      (navigator.maxTouchPoints > 0) ||
+      window.matchMedia('(pointer: coarse)').matches;
+    setIsTouch(check());
+  }, []);
+  return isTouch;
+}
+
+// ─── Touch controls overlay ───────────────────────────────────
+// Fixed-position D-pad + action button. Drives the same `keys` ref that
+// the keyboard handler uses, so the game loop doesn't need to know.
+function TouchControls({ keysRef, onAction }) {
+  const setKey = (k, v) => { if (keysRef.current) keysRef.current[k] = v; };
+  const press = (k) => (e) => {
+    e.preventDefault(); e.stopPropagation();
+    setKey(k, true);
+  };
+  const release = (k) => (e) => {
+    e.preventDefault(); e.stopPropagation();
+    setKey(k, false);
+  };
+  // wrap to clear key when pointer leaves
+  const btn = (label, k, style) => (
+    <button
+      onPointerDown={press(k)}
+      onPointerUp={release(k)}
+      onPointerCancel={release(k)}
+      onPointerLeave={release(k)}
+      onContextMenu={e => e.preventDefault()}
+      style={{
+        width:64, height:64, borderRadius:'50%',
+        background:'rgba(244,239,230,0.78)',
+        border:'1.5px solid rgba(58,42,30,0.55)',
+        color:'#3A2A1E', fontSize:22, fontWeight:600,
+        display:'flex', alignItems:'center', justifyContent:'center',
+        boxShadow:'0 4px 14px rgba(0,0,0,0.35)',
+        userSelect:'none', WebkitUserSelect:'none', touchAction:'none',
+        ...style,
+      }}
+    >{label}</button>
+  );
+  return (
+    <div style={{
+      position:'fixed', inset:0, pointerEvents:'none', zIndex:60,
+      // Respect iOS safe areas
+      paddingBottom:'env(safe-area-inset-bottom)',
+      paddingLeft:'env(safe-area-inset-left)',
+      paddingRight:'env(safe-area-inset-right)',
+    }}>
+      {/* D-pad bottom-left */}
+      <div style={{
+        position:'absolute', left:'calc(env(safe-area-inset-left) + 16px)', bottom:'calc(env(safe-area-inset-bottom) + 24px)',
+        width:208, height:208, pointerEvents:'auto',
+      }}>
+        <div style={{ position:'absolute', left:72, top:0   }}>{btn('▲','arrowup')}</div>
+        <div style={{ position:'absolute', left:0,  top:72  }}>{btn('◀','arrowleft')}</div>
+        <div style={{ position:'absolute', left:144,top:72  }}>{btn('▶','arrowright')}</div>
+        <div style={{ position:'absolute', left:72, top:144 }}>{btn('▼','arrowdown')}</div>
+      </div>
+      {/* Action button bottom-right */}
+      <div style={{
+        position:'absolute', right:'calc(env(safe-area-inset-right) + 24px)', bottom:'calc(env(safe-area-inset-bottom) + 56px)',
+        pointerEvents:'auto',
+      }}>
+        <button
+          onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); onAction(); }}
+          onContextMenu={e => e.preventDefault()}
+          style={{
+            width:88, height:88, borderRadius:'50%',
+            background:'rgba(58,42,30,0.92)', color:'#F4EFE6',
+            border:'2px solid rgba(244,239,230,0.6)',
+            fontSize:14, fontWeight:600, letterSpacing:'0.18em',
+            fontFamily:'JetBrains Mono, monospace',
+            boxShadow:'0 6px 18px rgba(0,0,0,0.45)',
+            userSelect:'none', WebkitUserSelect:'none', touchAction:'none',
+          }}
+        >互动</button>
+      </div>
+    </div>
+  );
 }
 
 // ─── HUD ──────────────────────────────────────────────────────
-function HUD({ scene, room, prompt, visitedCount }) {
+function HUD({ scene, room, prompt, visitedCount, isTouch }) {
   const inCorridor = scene === 'corridor';
   return (
     <React.Fragment>
@@ -453,17 +550,19 @@ function HUD({ scene, room, prompt, visitedCount }) {
           </div>
         </div>
       )}
-      {/* bottom-left controls hint */}
-      <div className="absolute" style={{ left:20, bottom:20, pointerEvents:'none' }}>
-        <div style={{
-          background:'rgba(244,239,230,0.85)', border:'1px solid #5a3e26',
-          padding:'6px 12px'
-        }}>
-          <div className="font-mono" style={{ fontSize:9, letterSpacing:'0.18em', color:'#5a3e26' }}>
-            WASD MOVE · E INTERACT{scene !== 'corridor' ? ' · ESC EXIT' : ''}
+      {/* bottom-left controls hint — desktop only (touch users have on-screen buttons) */}
+      {!isTouch && (
+        <div className="absolute" style={{ left:20, bottom:20, pointerEvents:'none' }}>
+          <div style={{
+            background:'rgba(244,239,230,0.85)', border:'1px solid #5a3e26',
+            padding:'6px 12px'
+          }}>
+            <div className="font-mono" style={{ fontSize:9, letterSpacing:'0.18em', color:'#5a3e26' }}>
+              WASD MOVE · E INTERACT{scene !== 'corridor' ? ' · ESC EXIT' : ''}
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </React.Fragment>
   );
 }
@@ -642,17 +741,23 @@ function Game() {
     return () => cancelAnimationFrame(raf);
   }, []);
 
+  // Action trigger (shared by keyboard 'E' and touch action button)
+  const triggerAction = () => {
+    if (modalRef.current) { setModal(null); return; }
+    if (transRef.current) return;
+    const i = getInteract();
+    if (i?.type === 'enter') enterRoom(i.room);
+    else if (i?.type === 'read') setModal(i.art);
+    else if (i?.type === 'exit') exitRoom();
+  };
+
   // Keyboard
   useEffect(() => {
     const dn = e => {
       const k = e.key.toLowerCase();
       keys.current[k] = true;
       if (k === 'e' || k === 'enter') {
-        if (modalRef.current) { setModal(null); return; }
-        const i = getInteract();
-        if (i?.type === 'enter') enterRoom(i.room);
-        else if (i?.type === 'read') setModal(i.art);
-        else if (i?.type === 'exit') exitRoom();
+        triggerAction();
       } else if (k === 'escape') {
         if (modalRef.current) setModal(null);
         else if (sceneRef.current !== 'corridor' && !transRef.current) exitRoom();
@@ -699,8 +804,9 @@ function Game() {
       imgs => setRoomImages(prev => ({ ...prev, ...imgs })));
   };
 
-  // Stage scale
-  const [stageRef, scale] = useStageScale();
+  // Stage scale + viewport-aware sizing + touch detection
+  const { scale, vw, vh } = useStageScale();
+  const isTouch = useIsTouch();
 
   // Derived
   const interact = getInteract();
@@ -714,22 +820,41 @@ function Game() {
   // Camera (corridor only)
   const cameraX = !inRoom ? Math.max(0, Math.min(CORRIDOR_W - STAGE_W, pos.x - STAGE_W/2)) : 0;
 
+  const actionKey = isTouch ? '互动' : 'E';
   const promptObj = interact && !transition && !modal ? (
-    interact.type === 'enter' ? { key:'E', text:`进入「${interact.room.labelZh}」` } :
-    interact.type === 'read'  ? { key:'E', text:`阅读《${interact.art.titleZh || interact.art.title}》` } :
-    interact.type === 'exit'  ? { key:'E', text:'返回长廊' } : null
+    interact.type === 'enter' ? { key:actionKey, text:`进入「${interact.room.labelZh}」` } :
+    interact.type === 'read'  ? { key:actionKey, text:`阅读《${interact.art.titleZh || interact.art.title}》` } :
+    interact.type === 'exit'  ? { key:actionKey, text:'返回长廊' } : null
   ) : null;
 
   const RoomScene = inRoom ? MR.SCENE_BY_ID[scene] : null;
 
+  // Outer wrapper: full viewport, dark background (letterbox bars).
+  // Inner sized box: matches the SCALED visual size (so it can be
+  // centered crisply); the stage itself stays at logical 1280×720
+  // and is scaled with transform-origin: top-left.
+  const scaledW = STAGE_W * scale;
+  const scaledH = STAGE_H * scale;
   return (
-    <div ref={stageRef} style={{
-      width: STAGE_W, height: STAGE_H,
-      transform: `scale(${scale})`, transformOrigin: 'center center',
-      position:'relative', overflow:'hidden',
-      background:'#1F1410',
-      boxShadow:'0 30px 80px rgba(0,0,0,0.6)'
-    }}>
+    <React.Fragment>
+      <div style={{
+        position:'fixed', inset:0, background:'#1F1410',
+        display:'flex', alignItems:'center', justifyContent:'center',
+        overflow:'hidden',
+        // ensure mobile viewport quirks don't add overflow
+        width:'100vw', height:'100vh',
+      }}>
+        <div style={{
+          width: scaledW, height: scaledH,
+          position:'relative',
+          boxShadow: scale < 1 ? '0 20px 60px rgba(0,0,0,0.6)' : 'none',
+        }}>
+          <div style={{
+            width: STAGE_W, height: STAGE_H,
+            transform: `scale(${scale})`, transformOrigin: 'top left',
+            position:'absolute', left:0, top:0, overflow:'hidden',
+            background:'#1F1410',
+          }}>
       {/* ─── CORRIDOR SCENE ─── */}
       {!inRoom && (
         <div className="absolute" style={{ left:-cameraX, top:0, width:CORRIDOR_W, height:STAGE_H }}>
@@ -788,13 +913,21 @@ function Game() {
           </div>
         </div>
       )}
-      <HUD scene={scene} room={room} prompt={promptObj} visitedCount={visitedCount}/>
+      <HUD scene={scene} room={room} prompt={promptObj} visitedCount={visitedCount} isTouch={isTouch}/>
       <TransitionOverlay data={transition && { kind:transition.kind, room:transition.room, t:transitionT }}/>
-      {/* modal */}
+          </div>
+        </div>
+      </div>
+      {/* modal — rendered OUTSIDE the scaled stage so position:fixed works
+          relative to the viewport, not the transformed ancestor */}
       {modal && (
         <window.ArtworkModal art={modal} room={room} imgSrc={roomImages[modal.title] || null} onClose={()=>setModal(null)}/>
       )}
-    </div>
+      {/* touch controls — only on touch devices, also outside the scaled stage */}
+      {isTouch && !modal && !transition && (
+        <TouchControls keysRef={keys} onAction={triggerAction}/>
+      )}
+    </React.Fragment>
   );
 }
 

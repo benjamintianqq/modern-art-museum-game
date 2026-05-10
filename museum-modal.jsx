@@ -28,18 +28,27 @@ function ArtworkModal({ art, room, imgSrc, onClose }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-6"
-      style={{ background: 'rgba(30,20,14,0.55)', backdropFilter: 'blur(6px)' }}
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      style={{
+        background: 'rgba(30,20,14,0.55)',
+        backdropFilter: 'blur(6px)',
+        padding: 'clamp(8px, 2vw, 24px)',
+        // Respect iOS safe areas
+        paddingTop: 'max(env(safe-area-inset-top), clamp(8px, 2vw, 24px))',
+        paddingBottom: 'max(env(safe-area-inset-bottom), clamp(8px, 2vw, 24px))',
+      }}
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-[1060px]"
+        className="artwork-modal-card relative w-full"
         style={{
+          maxWidth: '1060px',
           background: '#F4EFE6',
           color: '#3A2A1E',
           animation: 'cardIn 320ms cubic-bezier(.2,.7,.2,1) both',
-          maxHeight: '650px',
+          maxHeight: 'min(92vh, 720px)',
           overflowY: 'auto',
+          WebkitOverflowScrolling: 'touch',
           boxShadow: '0 24px 60px rgba(0,0,0,0.45)',
         }}
         onClick={(e) => e.stopPropagation()}
@@ -66,10 +75,11 @@ function ArtworkModal({ art, room, imgSrc, onClose }) {
           </button>
         </div>
 
-        {/* body — two columns */}
-        <div className="grid grid-cols-12 gap-7 px-7 pt-6 pb-7">
+        {/* body — two columns on desktop, stacked on mobile */}
+        <div className="modal-body grid grid-cols-12 gap-5 md:gap-7 pt-5 pb-6"
+             style={{ paddingLeft: 'clamp(16px, 3vw, 28px)', paddingRight: 'clamp(16px, 3vw, 28px)' }}>
           {/* image column */}
-          <div className="col-span-5">
+          <div className="modal-image col-span-12 md:col-span-5">
             <div
               className="w-full relative"
               style={{
@@ -111,7 +121,7 @@ function ArtworkModal({ art, room, imgSrc, onClose }) {
           </div>
 
           {/* text column */}
-          <div className="col-span-7">
+          <div className="modal-text col-span-12 md:col-span-7">
             <div className="font-mono text-[9.5px] tracking-[0.18em] uppercase" style={{ color: room.accent }}>
               {art.artistZh}  ·  {art.year}
             </div>
@@ -136,6 +146,12 @@ function ArtworkModal({ art, room, imgSrc, onClose }) {
         @keyframes cardIn {
           from { transform: translateY(16px); opacity: 0; }
           to   { transform: translateY(0);    opacity: 1; }
+        }
+        /* Mobile: stack columns, shrink type, full-bleed card */
+        @media (max-width: 767px) {
+          .artwork-modal-card { max-height: 92vh !important; }
+          .modal-image { order: 1; }
+          .modal-text  { order: 2; }
         }
       `}</style>
     </div>

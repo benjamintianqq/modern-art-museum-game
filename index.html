@@ -2,7 +2,11 @@
 <html lang="zh-Hans">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#1F1410" />
   <title>现代艺术 150 年</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -23,10 +27,27 @@
       font-family: 'Manrope', system-ui, sans-serif;
       -webkit-font-smoothing: antialiased;
       overflow: hidden;
+      /* prevent pull-to-refresh / overscroll bounce on mobile */
+      overscroll-behavior: none;
+      /* prevent iOS double-tap zoom */
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
     }
-    #game-root { width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; }
+    /* Use dynamic viewport units when available (handles iOS Safari address bar) */
+    #game-root {
+      width: 100vw; height: 100vh;
+      width: 100dvw; height: 100dvh;
+      display: flex; align-items: center; justify-content: center;
+      position: fixed; inset: 0;
+    }
     .font-display { font-family: 'Cormorant Garamond', serif; }
     .font-mono    { font-family: 'JetBrains Mono', monospace; }
+    /* Disallow text selection on UI chrome (allow inside modal via override below) */
+    button, .font-mono { -webkit-user-select: none; user-select: none; }
+    /* Keep modal text selectable */
+    .artwork-modal-card, .artwork-modal-card * {
+      -webkit-user-select: text; user-select: text;
+    }
   </style>
 </head>
 <body>
