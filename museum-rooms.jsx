@@ -29,21 +29,16 @@ const ROOM_PLAYER_SPAWN = { x: 640, y: 600 };
 function ImpScene() {
   return (
     <React.Fragment>
-      {/* sky reflected in water — soft pink/lavender dusk */}
+      {/* background — impressionist painting texture */}
       <div className="absolute inset-0" style={{
-        background: `
-          radial-gradient(ellipse 600px 220px at 30% 20%, #f4d8c8 0%, transparent 50%),
-          radial-gradient(ellipse 500px 200px at 70% 35%, #e8c8d8 0%, transparent 55%),
-          linear-gradient(180deg, #d8e0d8 0%, #b8c8b8 30%, #6a8a7a 65%, #3d5a4a 100%)`
+        backgroundImage: 'url(bg-imp.jpg)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center center',
       }}/>
-      {/* shimmering water highlights — Monet's signature dappled light */}
+      {/* soft luminous overlay to blend painting into scene */}
       <div className="absolute inset-0" style={{
-        background:`
-          radial-gradient(ellipse 220px 50px at 20% 60%, rgba(244,232,200,0.55) 0%, transparent 65%),
-          radial-gradient(ellipse 280px 60px at 65% 50%, rgba(248,224,200,0.45) 0%, transparent 65%),
-          radial-gradient(ellipse 180px 40px at 40% 75%, rgba(232,192,176,0.50) 0%, transparent 70%),
-          radial-gradient(ellipse 220px 55px at 85% 70%, rgba(208,184,160,0.40) 0%, transparent 70%)`,
-        mixBlendMode: 'screen'
+        background: 'radial-gradient(ellipse 70% 50% at 50% 40%, rgba(255,240,220,0.12) 0%, transparent 70%)',
+        pointerEvents: 'none',
       }}/>
       {/* horizon mist line */}
       <div className="absolute" style={{
@@ -133,28 +128,17 @@ function ImpScene() {
 function CubScene() {
   return (
     <React.Fragment>
-      {/* base earth-tone floor */}
+      {/* background — cubist geometric painting texture */}
       <div className="absolute inset-0" style={{
-        background:'linear-gradient(180deg, #3a2d24 0%, #6a5238 100%)'
+        backgroundImage: 'url(bg-cub.jpg)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center center',
       }}/>
-      {/* MASSIVE faceted shards covering everything */}
-      <svg className="absolute inset-0 w-full h-full" viewBox="0 0 1280 720" preserveAspectRatio="none">
-        {/* big floor planes */}
-        <polygon points="0,160 380,140 220,520 0,460" fill="#4a3829" opacity="0.95"/>
-        <polygon points="380,140 720,180 540,440 220,520" fill="#a07a5a" opacity="0.85"/>
-        <polygon points="720,180 980,150 1100,400 540,440" fill="#5a4233" opacity="0.92"/>
-        <polygon points="980,150 1280,180 1280,560 1100,400" fill="#7a5e3e" opacity="0.88"/>
-        <polygon points="0,460 220,520 540,440 1100,400 1280,560 1280,720 0,720" fill="#1f1814" opacity="0.7"/>
-        {/* secondary smaller facets — newspaper textures */}
-        <polygon points="100,400 200,380 180,500 80,500" fill="#c8b89a" opacity="0.35"/>
-        <polygon points="600,380 720,360 700,460 600,480" fill="#d8c8a8" opacity="0.3"/>
-        <polygon points="1000,420 1100,400 1090,500 990,520" fill="#c8b89a" opacity="0.35"/>
-        {/* analytic cubist lines (Braque grid) */}
-        <line x1="0" y1="280" x2="1280" y2="320" stroke="#e8d8b8" strokeWidth="1" opacity="0.25"/>
-        <line x1="200" y1="0" x2="280" y2="720" stroke="#e8d8b8" strokeWidth="1" opacity="0.22"/>
-        <line x1="600" y1="0" x2="720" y2="720" stroke="#e8d8b8" strokeWidth="1" opacity="0.22"/>
-        <line x1="1000" y1="0" x2="1100" y2="720" stroke="#e8d8b8" strokeWidth="1" opacity="0.22"/>
-      </svg>
+      {/* subtle dark overlay to deepen contrast and let paintings stand out */}
+      <div className="absolute inset-0" style={{
+        background: 'rgba(20,14,8,0.28)',
+        pointerEvents: 'none',
+      }}/>
       {/* fragmented guitar silhouette (collage element) — left foreground */}
       <svg className="absolute" style={{ left:'4%', bottom:'10%', width:240, height:280, opacity:0.55 }} viewBox="0 0 240 280">
         <polygon points="60,40 140,20 180,80 200,160 160,260 80,250 40,180 20,100" fill="#3a2d24" stroke="#c8b89a" strokeWidth="1.2" strokeDasharray="3,3"/>
